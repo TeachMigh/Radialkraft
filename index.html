@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radialkraft – Simulation</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --panel:#ffffff; --ink:#1d2330; --muted:#5f6878; --line:#d9dde4;
+    --blue:#2563eb; --green:#16a34a; --red:#dc2626; --accent:#0f766e; --soft:#eef2f7;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  header{padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:16px}
+  header h1{font-size:19px;margin:0;font-weight:650}
+  header .sub{color:var(--muted)}
+  main{display:grid;grid-template-columns:minmax(420px,1fr) minmax(430px,520px);gap:14px;padding:14px 20px 20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 10px;font-weight:650}
+  .col{display:flex;flex-direction:column;gap:14px;min-width:0}
+  #anim{width:min(100%,560px);aspect-ratio:1/1;display:block;margin:0 auto;background:#fbfcfd;border-radius:8px;border:1px solid var(--line)}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  button{font:inherit;padding:6px 12px;border-radius:7px;border:1px solid #c5cbd5;background:#fff;color:var(--ink);cursor:pointer}
+  button:hover{background:var(--soft)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:hover{filter:brightness(1.08)}
+  label.chk{display:inline-flex;align-items:center;gap:6px;color:var(--muted);margin-left:auto}
+  .slider{display:grid;grid-template-columns:150px 1fr 92px;align-items:center;gap:10px;margin:8px 0}
+  .slider .name{font-weight:600}
+  .slider .name small{display:block;font-weight:400;color:var(--muted)}
+  .slider .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .seg{display:inline-flex;border:1px solid #c5cbd5;border-radius:8px;overflow:hidden}
+  .seg button{border:0;border-radius:0;padding:5px 10px}
+  .seg button.on{background:var(--accent);color:#fff}
+  .modeRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+  .modeRow span{color:var(--muted)}
+  .derived{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
+  .derived b{color:var(--ink);font-weight:600}
+  .result{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .result .big{font-size:30px;font-weight:700;color:var(--blue);font-variant-numeric:tabular-nums}
+  table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+  th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--muted);font-weight:600;font-size:12.5px}
+  .hint{margin-top:8px;color:var(--muted);line-height:1.45}
+  .hint b{color:var(--ink)}
+  .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  select{font:inherit;padding:4px 6px;border-radius:6px;border:1px solid #c5cbd5;background:#fff}
+  .legend{display:flex;gap:14px;color:var(--muted);font-size:12.5px;margin-top:6px}
+  .legend i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px}
+  @media (max-width:980px){main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Radialkraft bei der gleichförmigen Kreisbewegung</h1>
+  <span class="sub">exakte Rechenwerte, ohne Messabweichung</span>
+</header>
+
+<main>
+  <!-- linke Spalte -->
+  <div class="col">
+    <div class="card">
+      <h2>Kreisbewegung (Draufsicht)</h2>
+      <canvas id="anim" width="1000" height="1000"></canvas>
+      <div class="btns">
+        <button id="btnRun" class="primary">Pause</button>
+        <button id="btnCut">Schnur durchtrennen</button>
+        <button id="btnReset">Zurücksetzen</button>
+        <label class="chk"><input type="checkbox" id="slow"> Zeitlupe (¼)</label>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--green)"></i>Bahngeschwindigkeit v (tangential)</span>
+        <span><i style="background:var(--blue)"></i>Radialkraft F<sub>R</sub> (zum Mittelpunkt)</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- rechte Spalte -->
+  <div class="col">
+    <div class="card">
+      <h2>Einstellungen</h2>
+      <div class="modeRow">
+        <span>Konstant halten:</span>
+        <div class="seg">
+          <button id="modeF" class="on">Frequenz f</button>
+          <button id="modeV">Bahngeschwindigkeit v</button>
+        </div>
+      </div>
+      <div class="hint" id="modeHint" style="margin-top:2px"></div>
+
+      <div class="slider">
+        <div class="name">Masse m<small>in g</small></div>
+        <input type="range" id="sM" min="10" max="200" step="5" value="20">
+        <div class="val" id="vM"></div>
+      </div>
+      <div class="slider">
+        <div class="name">Radius r<small>in cm</small></div>
+        <input type="range" id="sR" min="10" max="100" step="5" value="40">
+        <div class="val" id="vR"></div>
+      </div>
+      <div class="slider" id="rowF">
+        <div class="name">Frequenz f<small>Umdrehungen pro s</small></div>
+        <input type="range" id="sF" min="0.1" max="2" step="0.05" value="0.5">
+        <div class="val" id="vF"></div>
+      </div>
+      <div class="slider" id="rowV" style="display:none">
+        <div class="name">Bahngeschw. v<small>in m/s</small></div>
+        <input type="range" id="sV" min="0.2" max="4" step="0.1" value="1.2">
+        <div class="val" id="vV"></div>
+      </div>
+      <div class="derived" id="derived"></div>
+    </div>
+
+    <div class="card">
+      <h2>Radialkraft</h2>
+      <div class="result">
+        <span>F<sub>R</sub> =</span><span class="big" id="fBig"></span><span id="fAlt" style="color:var(--muted)"></span>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+"use strict";
+// ---------- Zustand ----------
+const S = {
+  m: 20,      // g
+  r: 40,      // cm
+  f: 0.5,     // 1/s
+  v: 1.2,     // m/s
+  mode: "f",  // "f": f wird konstant gehalten (v abgeleitet), "v": v konstant (f abgeleitet)
+  running: true, cut: false,
+  angle: -Math.PI/2,
+  flyPos: null, flyVel: null,
+  forceScale: null, // px pro N, wird beim Start festgelegt
+};
+
+const $ = id => document.getElementById(id);
+
+// ---------- Physik ----------
+function phys(st = S){
+  const m = st.m/1000, r = st.r/100;
+  let f, v, w;
+  if (st.mode === "f"){ f = st.f; w = 2*Math.PI*f; v = w*r; }
+  else { v = st.v; w = v/r; f = w/(2*Math.PI); }
+  const F = m*v*v/r;
+  return {m, r, f, v, w, T: 1/f, F};
+}
+
+// ---------- Zahlformat (deutsch) ----------
+function sig(x, n=3){
+  if (x === 0) return "0";
+  const d = Math.max(0, n - 1 - Math.floor(Math.log10(Math.abs(x))));
+  return x.toFixed(Math.min(d, 6)).replace(".", ",");
+}
+function fix(x, d){ return x.toFixed(d).replace(".", ","); }
+function fmtF(F){
+  if (F < 1) return sig(F*1000, 3) + " mN";
+  return sig(F, 3) + " N";
+}
+
+// ---------- UI-Aktualisierung ----------
+function syncSliders(){
+  $("sM").value = S.m; $("sR").value = S.r; $("sF").value = S.f; $("sV").value = S.v;
+  $("vM").textContent = S.m + " g";
+  $("vR").textContent = S.r + " cm";
+  $("vF").textContent = fix(S.f, 2) + " 1/s";
+  $("vV").textContent = fix(S.v, 1) + " m/s";
+  $("rowF").style.display = S.mode === "f" ? "" : "none";
+  $("rowV").style.display = S.mode === "v" ? "" : "none";
+  $("modeF").classList.toggle("on", S.mode === "f");
+  $("modeV").classList.toggle("on", S.mode === "v");
+  $("modeHint").innerHTML = S.mode === "f"
+    ? "Der Körper dreht sich mit fester Frequenz. Bei größerem Radius wird er dabei schneller (v = 2π·r·f)."
+    : "Der Körper behält seine Bahngeschwindigkeit. Bei größerem Radius dreht er sich langsamer.";
+}
+
+function update(){
+  syncSliders();
+  const p = phys();
+  $("derived").innerHTML = S.mode === "f"
+    ? `<span>v = <b>${sig(p.v,3)} m/s</b></span><span>ω = <b>${sig(p.w,3)} 1/s</b></span><span>T = <b>${sig(p.T,3)} s</b></span>`
+    : `<span>f = <b>${sig(p.f,3)} 1/s</b></span><span>ω = <b>${sig(p.w,3)} 1/s</b></span><span>T = <b>${sig(p.T,3)} s</b></span>`;
+  $("fBig").textContent = fmtF(p.F);
+  $("fAlt").textContent = p.F < 1 ? "= " + sig(p.F,3) + " N" : "";
+  if (!S.forceScale) S.forceScale = 0.32 / p.F; // Anteil des Zeichenbereichs
+}
+
+// ---------- Animation ----------
+const cv = $("anim"), cx = cv.getContext("2d");
+const W = cv.width, H = cv.height, C = W/2;
+const R_MAX_PX = 330;           // Pixel für r = 100 cm
+const PX_PER_M = R_MAX_PX / 1.0;
+
+function arrow(ctx, x0, y0, x1, y1, color, width, clipped){
+  const dx = x1-x0, dy = y1-y0, L = Math.hypot(dx, dy);
+  if (L < 2) return;
+  const ux = dx/L, uy = dy/L, head = Math.min(26, 8 + L*0.25);
+  ctx.save();
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width; ctx.lineCap = "round";
+  if (clipped) ctx.setLineDash([14, 8]);
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - ux*head*0.8, y1 - uy*head*0.8); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x1 - ux*head - uy*head*0.45, y1 - uy*head + ux*head*0.45);
+  ctx.lineTo(x1 - ux*head + uy*head*0.45, y1 - uy*head - ux*head*0.45);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function label(ctx, txt, x, y, color, sub){
+  // Vektorsymbol: Buchstabe + optional Index, darüber ein kleiner Pfeil
+  ctx.save(); ctx.fillStyle = color; ctx.strokeStyle = "rgba(251,252,253,.9)"; ctx.lineWidth = 7;
+  ctx.textBaseline = "middle";
+  ctx.font = "italic 600 32px -apple-system, Helvetica, Arial";
+  const w1 = ctx.measureText(txt).width;
+  ctx.font = "600 20px -apple-system, Helvetica, Arial";
+  const w2 = sub ? ctx.measureText(sub).width + 2 : 0;
+  const x0 = x - (w1 + w2)/2;
+  ctx.font = "italic 600 32px -apple-system, Helvetica, Arial"; ctx.textAlign = "left";
+  ctx.strokeText(txt, x0, y); ctx.fillText(txt, x0, y);
+  if (sub){ ctx.font = "600 20px -apple-system, Helvetica, Arial"; ctx.strokeText(sub, x0 + w1 + 2, y + 10); ctx.fillText(sub, x0 + w1 + 2, y + 10); }
+  const ay = y - 22, ax0 = x0 + 2, ax1 = x0 + w1 + 2;
+  ctx.lineWidth = 2.5; ctx.strokeStyle = color; ctx.beginPath(); ctx.moveTo(ax0, ay); ctx.lineTo(ax1, ay); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ax1 + 2, ay); ctx.lineTo(ax1 - 6, ay - 5); ctx.lineTo(ax1 - 6, ay + 5); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawAnim(){
+  const p = phys();
+  cx.clearRect(0, 0, W, H);
+  const rpx = p.r * PX_PER_M;
+
+  // Gitter / Hilfskreise
+  cx.save(); cx.strokeStyle = "#e7eaef"; cx.lineWidth = 2;
+  for (let k = 25; k <= 100; k += 25){ cx.beginPath(); cx.arc(C, C, k/100*R_MAX_PX, 0, 2*Math.PI); cx.stroke(); }
+  cx.fillStyle = "#9aa3b2"; cx.font = "24px -apple-system, Helvetica, Arial"; cx.textAlign = "left";
+  for (let k = 25; k <= 100; k += 25) cx.fillText(k + " cm", C + 6, C - k/100*R_MAX_PX - 6);
+  cx.restore();
+
+  // Bahn
+  cx.save(); cx.strokeStyle = "#8b95a5"; cx.lineWidth = 3; cx.setLineDash([10, 9]);
+  cx.beginPath(); cx.arc(C, C, rpx, 0, 2*Math.PI); cx.stroke(); cx.restore();
+
+  // Mittelpunkt
+  cx.fillStyle = "#1d2330"; cx.beginPath(); cx.arc(C, C, 8, 0, 2*Math.PI); cx.fill();
+
+  const bodyR = 10 + Math.sqrt(S.m) * 1.6;
+  const vLen = Math.min(260, p.v * 70);           // px, proportional zu v (bis 3,7 m/s)
+  let fLen = p.F * S.forceScale * R_MAX_PX;       // px, proportional zu F
+  const fMax = 420, clipped = fLen > fMax;
+  if (clipped) fLen = fMax;
+
+  if (!S.cut){
+    const x = C + rpx*Math.cos(S.angle), y = C + rpx*Math.sin(S.angle);
+    // Schnur
+    cx.strokeStyle = "#6b7280"; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(C, C); cx.lineTo(x, y); cx.stroke();
+    // Körper
+    cx.fillStyle = "#f59e0b"; cx.strokeStyle = "#b45309"; cx.lineWidth = 3;
+    cx.beginPath(); cx.arc(x, y, bodyR, 0, 2*Math.PI); cx.fill(); cx.stroke();
+    // Vektoren (Drehsinn: gegen den Uhrzeigersinn auf dem Bildschirm)
+    const tx = Math.sin(S.angle), ty = -Math.cos(S.angle);   // Tangente
+    const nx = -Math.cos(S.angle), ny = -Math.sin(S.angle);  // zum Mittelpunkt
+    arrow(cx, x, y, x + tx*vLen, y + ty*vLen, "#16a34a", 6);
+    arrow(cx, x, y, x + nx*fLen, y + ny*fLen, "#2563eb", 7, clipped);
+    label(cx, "v", x + tx*(vLen+26), y + ty*(vLen+26), "#16a34a");
+    label(cx, "F", x + nx*fLen*0.5 + tx*34, y + ny*fLen*0.5 + ty*34, "#2563eb", "R");
+  } else if (S.flyPos){
+    const x = S.flyPos.x, y = S.flyPos.y;
+    cx.save(); cx.strokeStyle = "rgba(22,163,74,.35)"; cx.setLineDash([6, 8]); cx.lineWidth = 3;
+    cx.beginPath(); cx.moveTo(S.flyStart.x, S.flyStart.y); cx.lineTo(x, y); cx.stroke(); cx.restore();
+    cx.fillStyle = "#f59e0b"; cx.strokeStyle = "#b45309"; cx.lineWidth = 3;
+    cx.beginPath(); cx.arc(x, y, bodyR, 0, 2*Math.PI); cx.fill(); cx.stroke();
+    const L = Math.hypot(S.flyVel.x, S.flyVel.y);
+    arrow(cx, x, y, x + S.flyVel.x/L*vLen, y + S.flyVel.y/L*vLen, "#16a34a", 6);
+    label(cx, "v", x + S.flyVel.x/L*(vLen+26), y + S.flyVel.y/L*(vLen+26), "#16a34a");
+    cx.save(); cx.font = "26px -apple-system, Helvetica, Arial"; cx.fillStyle = "#5f6878"; cx.textAlign = "center";
+    cx.fillText("Ohne Radialkraft: geradlinig gleichförmige Bewegung (1. Newtonsches Axiom)", C, H - 30); cx.restore();
+  }
+
+  // Info oben links
+  cx.save(); cx.font = "26px -apple-system, Helvetica, Arial"; cx.fillStyle = "#5f6878"; cx.textAlign = "left";
+  cx.fillText("Pfeillängen proportional zu v bzw. FR", 24, 40);
+  if (clipped) { cx.fillStyle = "#dc2626"; cx.fillText("Kraftpfeil gekürzt (zu lang)", 24, 74); }
+  cx.restore();
+}
+
+let last = performance.now();
+function tick(now){
+  const dt = Math.min(0.05, (now - last)/1000) * ($("slow").checked ? 0.25 : 1);
+  last = now;
+  const p = phys();
+  if (S.running){
+    if (!S.cut) S.angle -= p.w * dt;       // gegen den Uhrzeigersinn (Bildschirm-y nach unten)
+    else if (S.flyPos){
+      S.flyPos.x += S.flyVel.x*dt; S.flyPos.y += S.flyVel.y*dt;
+    }
+  }
+  drawAnim();
+  requestAnimationFrame(tick);
+}
+
+// ---------- Ereignisse ----------
+$("sM").oninput = e => { S.m = +e.target.value; update(); };
+$("sR").oninput = e => { S.r = +e.target.value; update(); };
+$("sF").oninput = e => { S.f = +e.target.value; update(); };
+$("sV").oninput = e => { S.v = +e.target.value; update(); };
+$("modeF").onclick = () => { if (S.mode !== "f"){ const p = phys(); S.f = Math.min(2, Math.max(0.1, Math.round(p.f*20)/20)); S.mode = "f"; update(); } };
+$("modeV").onclick = () => { if (S.mode !== "v"){ const p = phys(); S.v = Math.min(4, Math.max(0.2, Math.round(p.v*10)/10)); S.mode = "v"; update(); } };
+$("btnRun").onclick = () => { S.running = !S.running; $("btnRun").textContent = S.running ? "Pause" : "Start"; };
+$("btnCut").onclick = () => {
+  if (S.cut){ S.cut = false; S.flyPos = null; $("btnCut").textContent = "Schnur durchtrennen"; return; }
+  const p = phys(), rpx = p.r*PX_PER_M;
+  S.cut = true; $("btnCut").textContent = "Neue Schnur anbringen";
+  S.flyPos = {x: C + rpx*Math.cos(S.angle), y: C + rpx*Math.sin(S.angle)};
+  S.flyStart = {...S.flyPos};
+  const vpx = p.v*PX_PER_M;
+  S.flyVel = {x: Math.sin(S.angle)*vpx, y: -Math.cos(S.angle)*vpx};
+};
+$("btnReset").onclick = () => {
+  Object.assign(S, {m:20, r:40, f:0.5, v:1.2, mode:"f", running:true, cut:false, angle:-Math.PI/2, flyPos:null, flyVel:null, forceScale:null});
+  $("btnRun").textContent = "Pause"; $("btnCut").textContent = "Schnur durchtrennen"; $("slow").checked = false;
+  update();
+};
+
+update();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
